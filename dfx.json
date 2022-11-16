@@ -1,7 +1,7 @@
 {
   "canisters": {
     "deployer":{
-      "main": "src/plethoraNft_backend/deployer.mo",
+      "main": "src/plethoraNft_backend/Deployer.mo",
       "type": "motoko"
     },
     "plethoraNft_backend": {
@@ -10,7 +10,7 @@
     },
     "plethoraNft_frontend": {
       "dependencies": [
-        "plethoraNft_backend"
+        "deployer"
       ],
       "frontend": {
         "entrypoint": "src/plethoraNft_frontend/src/index.html"

@@ -97,7 +97,6 @@ actor Deployer {
 
     public func create_canister() : async (Text) {
         Cycles.add(1000000000000);
-        
         let canister = await NFT.nft(init_minter);
         let _ = await updateCanister(canister);
         let canister_id = Principal.fromActor(canister);
