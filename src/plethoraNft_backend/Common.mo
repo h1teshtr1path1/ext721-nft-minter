@@ -5,6 +5,9 @@ import Result "mo:base/Result";
 
 import ExtCore "./Core";
 module ExtCommon = {
+
+  public type MetadataIndex = Nat32;
+
   public type Metadata = {
     #fungible : {
       name : Text;

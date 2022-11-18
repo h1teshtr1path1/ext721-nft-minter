@@ -25,6 +25,7 @@ module ExtCore = {
   public type Balance = Nat;
   public type TokenIdentifier  = Text;
   public type TokenIndex = Nat32;
+  public type MetadataIndex = Nat32;
   public type TokenObj = {
     index : TokenIndex;
     canister : [Nat8];
@@ -74,6 +75,15 @@ module ExtCore = {
       return Nat32.equal(x, y);
     };
     public func hash(x : TokenIndex) : Hash.Hash {
+      return x;
+    };
+  };
+
+  public module MetadataIndex = {
+    public func equal(x : MetadataIndex, y : MetadataIndex) : Bool {
+      return Nat32.equal(x, y);
+    };
+    public func hash(x : MetadataIndex) : Hash.Hash {
       return x;
     };
   };

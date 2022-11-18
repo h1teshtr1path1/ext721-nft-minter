@@ -3,6 +3,7 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Array "mo:base/Array";
+import Nat32 "mo:base/Nat32";
 import Iter "mo:base/Iter";
 import AID "../AccountIdentifier";
 import ExtCore "../Core";
@@ -32,6 +33,7 @@ actor class nft(init_minter: Principal) = this {
   type AllowanceRequest = ExtAllowance.AllowanceRequest;
   type ApproveRequest = ExtAllowance.ApproveRequest;
   type Metadata = ExtCommon.Metadata;
+  type MetadataIndex = ExtCommon.MetadataIndex;
   type MintRequest  = ExtNonFungible.MintRequest ;
   
   //HTTP
@@ -61,14 +63,19 @@ actor class nft(init_minter: Principal) = this {
   private stable var _allowancesState : [(TokenIndex, Principal)] = [];
   private var _allowances : HashMap.HashMap<TokenIndex, Principal> = HashMap.fromIter(_allowancesState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
 	
-	private stable var _tokenMetadataState : [(TokenIndex, Metadata)] = [];
-  private var _tokenMetadata : HashMap.HashMap<TokenIndex, Metadata> = HashMap.fromIter(_tokenMetadataState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+	private stable var _tokenMetadataState : [(TokenIndex, MetadataIndex)] = [];
+  private var _tokenMetadata : HashMap.HashMap<TokenIndex, MetadataIndex> = HashMap.fromIter(_tokenMetadataState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+
+  private stable var _metadataState : [(MetadataIndex, Metadata)] = [];
+  private var _metadata : HashMap.HashMap<MetadataIndex, Metadata> = HashMap.fromIter(_metadataState.vals(), 0, ExtCore.MetadataIndex.equal, ExtCore.MetadataIndex.hash);
+
   
   private stable var _supply : Balance  = 0;
   private stable var _minter : Principal  = init_minter;
   private stable var _gifter : Principal  = Principal.fromText("nraos-xaaaa-aaaah-qadqa-cai");
   private stable var _nextTokenId : TokenIndex  = 0;
   private stable var _nextToSell : TokenIndex  = 0;
+  private stable var _nextMetadataIndex : MetadataIndex = 0;
   
 
   //State functions
@@ -77,12 +84,14 @@ actor class nft(init_minter: Principal) = this {
     _buyersState := Iter.toArray(_buyers.entries());
     _allowancesState := Iter.toArray(_allowances.entries());
     _tokenMetadataState := Iter.toArray(_tokenMetadata.entries());
+    _metadataState := Iter.toArray(_metadata.entries());
   };
   system func postupgrade() {
     _registryState := [];
     _buyersState := [];
     _allowancesState := [];
     _tokenMetadataState := [];
+    _metadataState := []; 
   };
   
   public shared(msg) func disribute(user : User) : async () {
@@ -136,7 +145,18 @@ actor class nft(init_minter: Principal) = this {
 			metadata = request.metadata;
 		}); 
 		_registry.put(token, receiver);
-		_tokenMetadata.put(token, md);
+    var notPresent : Bool = false;
+    for((metadata_index, metadata) in _metadata.entries()){
+      if(md == metadata){
+        notPresent := true;
+        _tokenMetadata.put(token, metadata_index);
+      }
+    };
+    if(notPresent){
+      _tokenMetadata.put(token, _nextMetadataIndex);
+      _metadata.put(_nextMetadataIndex, md);
+      _nextMetadataIndex := _nextMetadataIndex + 1;
+    };
 		_supply := _supply + 1;
 		_nextTokenId := _nextTokenId + 1;
     token;
@@ -300,8 +320,11 @@ actor class nft(init_minter: Principal) = this {
   public query func getAllowances() : async [(TokenIndex, Principal)] {
     Iter.toArray(_allowances.entries());
   };
-  public query func getTokens() : async [(TokenIndex, Metadata)] {
+  public query func getTokens() : async [(TokenIndex, MetadataIndex)] {
     Iter.toArray(_tokenMetadata.entries());
+  };
+  public query func getTokensMetadata() : async [(MetadataIndex, Metadata)] {
+    Iter.toArray(_metadata.entries());
   };
 
     
@@ -310,7 +333,11 @@ actor class nft(init_minter: Principal) = this {
 			return #err(#InvalidToken(token));
 		};
 		let tokenind = ExtCore.TokenIdentifier.getIndex(token);
-    switch (_tokenMetadata.get(tokenind)) {
+    var metadata_index : MetadataIndex = Option.get(_tokenMetadata.get(tokenind), _nextMetadataIndex);
+    if(metadata_index == _nextMetadataIndex){
+      return #err(#InvalidToken(token));
+    };
+    switch (_metadata.get(metadata_index)) {
       case (?token_metadata) {
 				return #ok(token_metadata);
       };
@@ -349,7 +376,11 @@ actor class nft(init_minter: Principal) = this {
           return null;
         };
         let tokenind = ExtCore.TokenIdentifier.getIndex(token);
-        switch (_tokenMetadata.get(tokenind)) {
+        var metadata_index : MetadataIndex = Option.get(_tokenMetadata.get(tokenind), _nextMetadataIndex);
+        if(metadata_index == _nextMetadataIndex){
+          return null;
+        };
+        switch (_metadata.get(metadata_index)) {
           case (?token_metadata) {
             switch(token_metadata) {
               case (#fungible data) return null;

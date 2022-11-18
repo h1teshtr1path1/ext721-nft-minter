@@ -53,6 +53,7 @@ actor Deployer {
     private var init_minter : Principal = deployerID;
 
     private stable var collections : Trie.Trie<Text, Text> = Trie.empty(); //mapping of Collection CanisterID -> Collection Name
+    private stable var addresses : [Text] = [];
 
 
     type NFT = NFT.nft; 
@@ -130,7 +131,7 @@ actor Deployer {
         return Principal.toText(canister_id);
     };
 
-    public func updateCanister(a: actor {}) : async () {
+    private func updateCanister(a: actor {}) : async () {
         let cid = { canister_id = Principal.fromActor(a)};
         var principal : Text = "2ot7t-idkzt-murdg-in2md-bmj2w-urej7-ft6wa-i4bd3-zglmv-pf42b-zqe";
         var owner : Text = "";
@@ -154,7 +155,7 @@ actor Deployer {
         collections := Trie.put(collections, keyT(canID), Text.equal, collectionName).0;
     };
 
-    public query func allCollections() : async([(Text, Text)]){
+    public query func getCollections() : async([(Text, Text)]){
         var buffer : Buffer.Buffer<(Text, Text)> = Buffer.Buffer<(Text, Text)>(0);
         for((id, name) in Trie.iter(collections)){
             buffer.add((name, id));
@@ -162,7 +163,12 @@ actor Deployer {
         return buffer.toArray();
     };
 
-    public func mintToCollection(collection_canister_id : Text, base64encoding : ?Text, mint_to : User, mint_size : Nat32) : async([TokenIndex]){
+    public query func getAddresses() : async ([Text]){
+        return addresses;
+    };
+
+
+    public func batch_mint_to_address(collection_canister_id : Text, base64encoding : ?Text, mint_to : User, mint_size : Nat32) : async([TokenIndex]){
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         var i : Nat32 = 0;
         while(i < mint_size){
@@ -176,5 +182,36 @@ actor Deployer {
             i +=1;
         };
         return indices.toArray();
+    };
+
+    public func fetch_collection_addresses(canister_id : Text) : async (){
+        let collection = actor (canister_id) : actor { getRegistry : () -> async ([(TokenIndex, AccountIdentifier)])};
+        var new_addresses : [(TokenIndex, AccountIdentifier)] = await collection.getRegistry();
+        var buffer : Buffer.Buffer<Text> = Buffer.Buffer<Text>(0);
+        for(unit in addresses.vals()){
+            buffer.add(unit);
+        };
+        for((token_index, account_identifier)  in new_addresses.vals()){
+            buffer.add(account_identifier);
+        };
+        addresses := buffer.toArray();
+    };
+
+    public func airdrop_to_addresses(collection_canister_id : Text, base64encoding : ?Text, mint_size : Nat) : async (){
+        var i : Nat = 0;
+        while(i < mint_size){
+            var mintReq : MintRequest = {
+                to = #address (addresses[i]);
+                metadata = base64encoding;
+            };
+            let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
+            var token_id : TokenIndex = await collection.mintNFT(mintReq);
+            i := i+1;
+        };
+    };
+
+    public shared(msg) func clear_collection_registry() : async() {
+        assert(msg.caller == Principal.fromText("2ot7t-idkzt-murdg-in2md-bmj2w-urej7-ft6wa-i4bd3-zglmv-pf42b-zqe"));
+        collections := Trie.empty();
     };
 };
