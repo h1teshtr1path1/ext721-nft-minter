@@ -324,10 +324,11 @@ actor class nft(init_minter: Principal) = this {
   public query func http_request(request : HttpRequest) : async HttpResponse {
     switch(getTokenData(getParam(request.url, "tokenid"))) {
       case (?svgdata) {
+        var base64 : Text = Option.get(Text.decodeUtf8(Blob.fromArray(svgdata)), "");
         return {
           status_code = 200;
-          headers = [("content-type", "image/svg+xml")];
-          body = svgdata;
+          headers = [("content-type", "text/html")];
+          body = Blob.toArray(Text.encodeUtf8("<img src=\"" #base64 #"\" alt=\"nft_image\"></img>"));
         }
       };
       case (_) {
@@ -341,6 +342,7 @@ actor class nft(init_minter: Principal) = this {
   };
   
   func getTokenData(tokenid : ?Text) : ?[Nat8] {
+    var emptyData = "";
     switch (tokenid) {
       case (?token) {
         if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
@@ -351,7 +353,7 @@ actor class nft(init_minter: Principal) = this {
           case (?token_metadata) {
             switch(token_metadata) {
               case (#fungible data) return null;
-              case (#nonfungible data) return ?Blob.toArray(Option.unwrap(data.metadata));
+              case (#nonfungible data) return ?Blob.toArray(Text.encodeUtf8(Option.get(data.metadata, emptyData)));
             };
           };
           case (_) {

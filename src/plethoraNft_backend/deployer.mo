@@ -23,13 +23,36 @@ import Trie "mo:base/Trie";
 import Trie2D "mo:base/Trie";
 
 import NFT "./NFT/main";
+import AID "./AccountIdentifier";
+import ExtCore "./Core";
+import ExtCommon "./Common";
+import ExtAllowance "./Allowance";
+import ExtNonFungible "./NonFungible";
 
 
 
 actor Deployer {
+    type AccountIdentifier = ExtCore.AccountIdentifier;
+    type SubAccount = ExtCore.SubAccount;
+    type User = ExtCore.User;
+    type Balance = ExtCore.Balance;
+    type TokenIdentifier = ExtCore.TokenIdentifier;
+    type TokenIndex  = ExtCore.TokenIndex ;
+    type Extension = ExtCore.Extension;
+    type CommonError = ExtCore.CommonError;
+    type BalanceRequest = ExtCore.BalanceRequest;
+    type BalanceResponse = ExtCore.BalanceResponse;
+    type TransferRequest = ExtCore.TransferRequest;
+    type TransferResponse = ExtCore.TransferResponse;
+    type AllowanceRequest = ExtAllowance.AllowanceRequest;
+    type ApproveRequest = ExtAllowance.ApproveRequest;
+    type Metadata = ExtCommon.Metadata;
+    type MintRequest  = ExtNonFungible.MintRequest ;
 
-    private var init_minter : Principal = Principal.fromText("2ot7t-idkzt-murdg-in2md-bmj2w-urej7-ft6wa-i4bd3-zglmv-pf42b-zqe");
-    private stable var nftCanister : Principal = Principal.fromText("7xo7b-caaaa-aaaal-abjtq-cai");
+    private stable var deployerID : Principal = Principal.fromText("7xo7b-caaaa-aaaal-abjtq-cai");
+    private var init_minter : Principal = deployerID;
+
+    private stable var collections : Trie.Trie<Text, Text> = Trie.empty(); //mapping of Collection CanisterID -> Collection Name
 
 
     type NFT = NFT.nft; 
@@ -51,6 +74,10 @@ actor Deployer {
 
     private func key(x : Nat32) : Trie.Key<Nat32> {
         return { hash = x; key = x };
+    };
+
+    private func keyT(x : Text) : Trie.Key<Text> {
+        return { hash = Text.hash(x); key = x };
     };
 
     //IC Management Canister.
@@ -95,13 +122,11 @@ actor Deployer {
         Cycles.balance();
     };
 
-    public func create_canister() : async (Text) {
+    private func create_canister() : async (Text) {
         Cycles.add(1000000000000);
         let canister = await NFT.nft(init_minter);
         let _ = await updateCanister(canister);
         let canister_id = Principal.fromActor(canister);
-        
-        nftCanister := canister_id;
         return Principal.toText(canister_id);
     };
 
@@ -122,5 +147,34 @@ actor Deployer {
     };
     public func wallet_receive() : async Nat{
         Cycles.accept(Cycles.available())
+    };
+
+    public func create_collection(collectionName : Text) : async(){
+        var canID : Text = await create_canister();
+        collections := Trie.put(collections, keyT(canID), Text.equal, collectionName).0;
+    };
+
+    public query func allCollections() : async([(Text, Text)]){
+        var buffer : Buffer.Buffer<(Text, Text)> = Buffer.Buffer<(Text, Text)>(0);
+        for((id, name) in Trie.iter(collections)){
+            buffer.add((name, id));
+        };
+        return buffer.toArray();
+    };
+
+    public func mintToCollection(collection_canister_id : Text, base64encoding : ?Text, mint_to : User, mint_size : Nat32) : async([TokenIndex]){
+        var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
+        var i : Nat32 = 0;
+        while(i < mint_size){
+            var mintReq : MintRequest = {
+                to = mint_to;
+                metadata = base64encoding;
+            };
+            let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
+            var token_id : TokenIndex = await collection.mintNFT(mintReq);
+            indices.add(token_id);
+            i +=1;
+        };
+        return indices.toArray();
     };
 };
