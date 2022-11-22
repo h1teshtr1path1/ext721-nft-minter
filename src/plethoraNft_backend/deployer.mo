@@ -151,16 +151,27 @@ actor Deployer {
     };
 
     public shared(msg) func create_collection(collectionName : Text) : async(Text){
-        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var canID : Text = await create_canister();
         collections := Trie.put(collections, keyT(canID), Text.equal, collectionName).0;
         return canID;
     };
 
-    public query func getCollections() : async([(Text, Text)]){
-        var buffer : Buffer.Buffer<(Text, Text)> = Buffer.Buffer<(Text, Text)>(0);
+    public query func getCollections() : async([Text]){
+        var buffer : Buffer.Buffer<Text> = Buffer.Buffer<Text>(0);
         for((id, name) in Trie.iter(collections)){
-            buffer.add((name, id));
+            var data : Text = name #" -> " #id #" ,";
+            buffer.add(data);
+        };
+        return buffer.toArray();
+    };
+    public func getRegistry(collection_canister_id : Text) : async([Text]){
+        var buffer : Buffer.Buffer<Text> = Buffer.Buffer<Text>(0);
+        let collection = actor (collection_canister_id) : actor { getRegistry : () -> async [(TokenIndex, AccountIdentifier)]};
+        var _registry : [(TokenIndex, AccountIdentifier)] = await collection.getRegistry();
+        for((index, add) in _registry.vals()){
+            var data : Text = Nat32.toText(index) #" : " #add #" ,";
+            buffer.add(data);
         };
         return buffer.toArray();
     };
@@ -171,7 +182,7 @@ actor Deployer {
 
 
     public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32) : async([TokenIndex]){
-        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         var i : Nat32 = 0;
         while(i < mint_size){
@@ -201,7 +212,7 @@ actor Deployer {
     };
 
     public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, base64encoding : Text, mint_size : Nat32) : async ([TokenIndex]){
-        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var i : Nat32 = 0;
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         while(i < mint_size){
