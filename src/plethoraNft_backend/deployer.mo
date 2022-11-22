@@ -150,9 +150,11 @@ actor Deployer {
         Cycles.accept(Cycles.available())
     };
 
-    public func create_collection(collectionName : Text) : async(){
+    public shared(msg) func create_collection(collectionName : Text) : async(Text){
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
         var canID : Text = await create_canister();
         collections := Trie.put(collections, keyT(canID), Text.equal, collectionName).0;
+        return canID;
     };
 
     public query func getCollections() : async([(Text, Text)]){
@@ -168,13 +170,14 @@ actor Deployer {
     };
 
 
-    public func batch_mint_to_address(collection_canister_id : Text, base64encoding : ?Text, mint_to : User, mint_size : Nat32) : async([TokenIndex]){
+    public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32) : async([TokenIndex]){
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         var i : Nat32 = 0;
         while(i < mint_size){
             var mintReq : MintRequest = {
-                to = mint_to;
-                metadata = base64encoding;
+                to = #principal (Principal.fromText(mint_to));
+                metadata = ?base64encoding;
             };
             let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
             var token_id : TokenIndex = await collection.mintNFT(mintReq);
@@ -197,17 +200,21 @@ actor Deployer {
         addresses := buffer.toArray();
     };
 
-    public func airdrop_to_addresses(collection_canister_id : Text, base64encoding : ?Text, mint_size : Nat) : async (){
-        var i : Nat = 0;
+    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, base64encoding : Text, mint_size : Nat32) : async ([TokenIndex]){
+        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae"));
+        var i : Nat32 = 0;
+        var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         while(i < mint_size){
             var mintReq : MintRequest = {
-                to = #address (addresses[i]);
-                metadata = base64encoding;
+                to = #address (addresses[Nat32.toNat(i)]);
+                metadata = ?base64encoding;
             };
             let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
             var token_id : TokenIndex = await collection.mintNFT(mintReq);
+            indices.add(token_id);
             i := i+1;
         };
+        return indices.toArray();
     };
 
     public shared(msg) func clear_collection_registry() : async() {
