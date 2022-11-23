@@ -47,6 +47,7 @@ actor Deployer {
     type AllowanceRequest = ExtAllowance.AllowanceRequest;
     type ApproveRequest = ExtAllowance.ApproveRequest;
     type Metadata = ExtCommon.Metadata;
+    type MetadataIndex = ExtCommon.MetadataIndex;
     type MintRequest  = ExtNonFungible.MintRequest ;
 
     private stable var deployerID : Principal = Principal.fromText("7xo7b-caaaa-aaaal-abjtq-cai");
@@ -211,17 +212,24 @@ actor Deployer {
         addresses := buffer.toArray();
     };
 
-    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, base64encoding : Text, mint_size : Nat32) : async ([TokenIndex]){
+    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32) : async ([TokenIndex]){
         assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
-        var i : Nat32 = 0;
+        var i : Nat = 0;
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
-        while(i < mint_size){
+        let collection = actor (collection_canister_id) : actor { getRegistry : () -> async [(TokenIndex, AccountIdentifier)]};
+        var fetched_addresses : [(TokenIndex, AccountIdentifier)] = await collection.getRegistry();
+        var total_mints : Nat = Nat32.toNat(mint_size);
+        if(fetched_addresses.size() < Nat32.toNat(mint_size)){
+            total_mints := fetched_addresses.size();
+        };
+        while(i < total_mints){
+            var id : (TokenIndex, AccountIdentifier) = fetched_addresses[i];
             var mintReq : MintRequest = {
-                to = #address (addresses[Nat32.toNat(i)]);
+                to = #address (id.1);
                 metadata = ?base64encoding;
             };
-            let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
-            var token_id : TokenIndex = await collection.mintNFT(mintReq);
+            let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
+            var token_id : TokenIndex = await c.mintNFT(mintReq);
             indices.add(token_id);
             i := i+1;
         };
@@ -231,5 +239,37 @@ actor Deployer {
     public shared(msg) func clear_collection_registry() : async() {
         assert(msg.caller == Principal.fromText("2ot7t-idkzt-murdg-in2md-bmj2w-urej7-ft6wa-i4bd3-zglmv-pf42b-zqe"));
         collections := Trie.empty();
+    };
+
+    public shared({caller}) func show_token_nft(collection_canister_id : Text, token_index : TokenIndex) : async(Metadata){
+        // assert(caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
+        
+        let collection_ = actor (collection_canister_id) : actor { getTokensMetadata : () -> async [(MetadataIndex, Metadata)]};
+        var indices : [(TokenIndex, MetadataIndex)] = await getTokens(collection_canister_id);
+        var meta : Metadata = #nonfungible {
+            metadata = null;
+        };
+        var m_index : ?MetadataIndex = null;
+        label indiLoop for(val in indices.vals()){
+            if(val.0 == token_index){
+                m_index := ?val.1;
+                break indiLoop;
+            }
+        };
+        var data : [(MetadataIndex, Metadata)] = await getTokensMetadata(collection_canister_id);
+        for(val in data.vals()){
+            if(?val.0 == m_index and m_index != null){
+                meta := val.1;
+            }
+        };
+        return meta;
+    };
+    public shared({caller}) func getTokens(collection_canister_id : Text) : async [(TokenIndex, MetadataIndex)]{
+        let collection = actor (collection_canister_id) : actor { getTokens : () -> async [(TokenIndex, MetadataIndex)]};
+        return (await collection.getTokens());
+    };
+    public shared({caller}) func getTokensMetadata(collection_canister_id : Text) : async [(MetadataIndex, Metadata)]{
+        let collection = actor (collection_canister_id) : actor { getTokensMetadata : () -> async [(MetadataIndex, Metadata)]};
+        return (await collection.getTokensMetadata());
     };
 };

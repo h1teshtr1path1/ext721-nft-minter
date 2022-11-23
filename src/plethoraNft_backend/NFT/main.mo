@@ -152,7 +152,7 @@ actor class nft(init_minter: Principal) = this {
         _tokenMetadata.put(token, metadata_index);
       }
     };
-    if(notPresent){
+    if(notPresent == false){
       _tokenMetadata.put(token, _nextMetadataIndex);
       _metadata.put(_nextMetadataIndex, md);
       _nextMetadataIndex := _nextMetadataIndex + 1;
