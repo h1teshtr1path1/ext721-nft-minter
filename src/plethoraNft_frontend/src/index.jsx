@@ -182,6 +182,23 @@ const App = () => {
       alert("Connect Plug Wallet!");
       return;
     }
+    alert("You need to transfer [0.33763252 ICP -><-  1T cycles (NFT Collection Canister)] + [0.0001 ICP -><- Transaction Fees] to Provider for creation of new collection.");
+    
+    try{
+      const params = {
+        to: 'cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe',
+        amount: 33773252,      //0.33773252
+        memo: 'charges for new canister creation',
+      };
+      const result = await window.ic.plug.requestTransfer(params);
+      alert(result);
+      console.log(result);
+    }
+    catch (err){
+      alert(err);
+      console.log(err);
+      return;
+    }
     const deployerActor = await window.ic.plug.createActor({
       canisterId: deployerCanisterId,
       interfaceFactory: deployerIDL,
@@ -190,7 +207,7 @@ const App = () => {
     try {
       setLoader(true)
       const canisterId = await deployerActor.create_collection(name);
-      alert(canisterId);
+      alert("Here is your nft collection : " + canisterId);
       setLoader(false)
     }
     catch (err) {
