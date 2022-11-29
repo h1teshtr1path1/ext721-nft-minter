@@ -23,6 +23,8 @@ const App = () => {
   const [token_index, setTokenIndex] = useState(0);
   const [loader, setLoader] = useState(false);
 
+  const [address, setAddress] = useState("");
+
   const candidLink = "https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.ic0.app/?id=m4xcd-5iaaa-aaaal-abkua-cai";
 
   const handleAmtChange = (event) => {
@@ -44,35 +46,46 @@ const App = () => {
 
   const deployerIDL = ({ IDL }) => {
     const TokenIndex = IDL.Nat32;
+    const MetadataIndex = IDL.Nat32;
     const Metadata = IDL.Variant({
-      'fungible': IDL.Record({
-        'decimals': IDL.Nat8,
-        'metadata': IDL.Opt(IDL.Vec(IDL.Nat8)),
-        'name': IDL.Text,
-        'symbol': IDL.Text,
+      'fungible' : IDL.Record({
+        'decimals' : IDL.Nat8,
+        'metadata' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+        'name' : IDL.Text,
+        'symbol' : IDL.Text,
       }),
-      'nonfungible': IDL.Record({ 'metadata': IDL.Opt(IDL.Text) }),
+      'nonfungible' : IDL.Record({ 'metadata' : IDL.Opt(IDL.Text) }),
     });
     return IDL.Service({
-      'airdrop_to_addresses': IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
-        [IDL.Vec(TokenIndex)],
-        [],
-      ),
-      'batch_mint_to_address': IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
-        [IDL.Vec(TokenIndex)],
-        [],
-      ),
-      'clear_collection_registry': IDL.Func([], [], []),
-      'create_collection': IDL.Func([IDL.Text], [IDL.Text], []),
-      'cycleBalance': IDL.Func([], [IDL.Nat], ['query']),
-      'fetch_collection_addresses': IDL.Func([IDL.Text], [], []),
-      'getAddresses': IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-      'getCollections': IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
-      'getRegistry': IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], []),
-      'show_token_nft': IDL.Func([IDL.Text, TokenIndex], [Metadata], []),
-      'wallet_receive': IDL.Func([], [IDL.Nat], []),
+      'airdrop_to_addresses' : IDL.Func(
+          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
+          [IDL.Vec(TokenIndex)],
+          [],
+        ),
+      'batch_mint_to_address' : IDL.Func(
+          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
+          [IDL.Vec(TokenIndex)],
+          [],
+        ),
+      'clear_collection_registry' : IDL.Func([], [], []),
+      'create_collection' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+      'cycleBalance' : IDL.Func([], [IDL.Nat], ['query']),
+      'fetch_collection_addresses' : IDL.Func([IDL.Text], [], []),
+      'getAddresses' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+      'getCollections' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+      'getRegistry' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], []),
+      'getTokens' : IDL.Func(
+          [IDL.Text],
+          [IDL.Vec(IDL.Tuple(TokenIndex, MetadataIndex))],
+          [],
+        ),
+      'getTokensMetadata' : IDL.Func(
+          [IDL.Text],
+          [IDL.Vec(IDL.Tuple(MetadataIndex, Metadata))],
+          [],
+        ),
+      'show_token_nft' : IDL.Func([IDL.Text, TokenIndex], [Metadata], []),
+      'wallet_receive' : IDL.Func([], [IDL.Nat], []),
     });
   };
 
@@ -136,12 +149,11 @@ const App = () => {
     });
     const sessionData = window.ic.plug.sessionManager.sessionData;
     console.log(canister);
-    console.log(sessionData.principalId);
     console.log(encoding);
     console.log(amt);
     try {
       setLoader(true)
-      const mintedTokens = await deployerActor.batch_mint_to_address(String(canister), String(encoding), String(sessionData.principalId), Number(amt));
+      const mintedTokens = await deployerActor.batch_mint_to_address(String(canister), String(encoding), String(address), Number(amt));
       setTokens(mintedTokens);
       setLoader(false)
     }
@@ -183,8 +195,8 @@ const App = () => {
       return;
     }
     alert("You need to transfer [0.33763252 ICP -><-  1T cycles (NFT Collection Canister)] + [0.0001 ICP -><- Transaction Fees] to Provider for creation of new collection.");
-    
-    try{
+
+    try {
       const params = {
         to: 'cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe',
         amount: 33773252,      //0.33773252
@@ -194,7 +206,7 @@ const App = () => {
       alert(result);
       console.log(result);
     }
-    catch (err){
+    catch (err) {
       alert(err);
       console.log(err);
       return;
@@ -206,8 +218,9 @@ const App = () => {
 
     try {
       setLoader(true)
-      const canisterId = await deployerActor.create_collection(name);
-      alert("Here is your nft collection : " + canisterId);
+      const sessionData = window.ic.plug.sessionManager.sessionData;
+      const canisterId = await deployerActor.create_collection(name, String(sessionData.principalId));
+      alert("Here is your nft collection : " + canisterId + "adn Minter : " + (sessionData.principalId));
       setLoader(false)
     }
     catch (err) {
@@ -255,8 +268,8 @@ const App = () => {
   return (
     <div style={{ "fontSize": "30px" }}>
       <div>
-        <div style={{ display: "flex", justifyContent: "center", backgroundColor:"Black", position: "fixed", width: "100%"}}>
-        <div style={{marginRight: 50}}>
+        <div style={{ display: "flex", justifyContent: "center", backgroundColor: "Black", position: "fixed", width: "100%" }}>
+          <div style={{ marginRight: 50 }}>
             {
               loader && (<Audio
                 height="30"
@@ -280,7 +293,7 @@ const App = () => {
           </div>
         </div>
         <br></br>
-        <div style={{marginTop: 50}}>
+        <div style={{ marginTop: 50 }}>
           <div>Create Collection: (To create a new NFT collection)</div>
           <div><input
             name="name"
@@ -300,7 +313,7 @@ const App = () => {
         <br></br>
         <div>
           <div>
-            Check all Nft Collection Name and Collection Canister ID's
+            List all created Collections and their Canister ID’s
           </div>
           <div>
             <button
@@ -337,69 +350,14 @@ const App = () => {
           </div>
 
         </div>
-        <br></br>
-        <br></br>
 
+        <br></br>
+        <br></br>
 
 
 
         <div>
-          <div>Batch Mint to Yourself : (Mint multiple Nft's to your Plug address!)</div>
-          <div>
-            <div><input
-              name="amt"
-              type='number'
-              placeholder="How many?"
-              required
-              onChange={handleAmtChange}
-            ></input></div>
-            <div><input
-              name="canisterID"
-              placeholder="Collection Canister ID?"
-              required
-              onChange={handleCanChange}
-            ></input></div>
-            <div style={{ display: "flex" }}>
-              <div style={{ fontSize: 20 }}>
-                NFT image
-              </div>
-              <div>
-                {nft && (
-                  <div>
-                    <img alt="not found" width={"200px"} src={URL.createObjectURL(nft)} />
-                    <button onClick={() => setNft(null)}>Remove</button>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  name="myImage"
-                  onChange={(event) => {
-                    const file = event.target.files[0];
-                    const reader = new window.FileReader()
-                    reader.onloadend = () => {
-                      setNft(event.target.files[0]);
-                      setEncoding(reader.result)
-                      console.log(reader.result)
-                    }
-                    reader.readAsDataURL(file);
-                  }}
-                />
-              </div>
-            </div>
-            <button
-              style={{ backgroundColor: "transparent", cursor: 'pointer', marginTop: 20, marginBottom: 20, width: 150, height: 30 }}
-              className=""
-              onClick={batch_mint}>
-              Batch mint!
-            </button>
-            <div style={{ color: "Green", backgroundColor: "Yellow" }}>{tokens}</div>
-          </div>
-        </div>
-        <br></br>
-        <br></br>
-
-        <div>
-          <div>Airdrop to DAB's NFT Collection : (Airdrop NFT to addresses from DAB NFT collection)</div>
+          <div>Airdrop to Holders of an NFT Collection : </div>
           <div>
             <div><input
               name="amt"
@@ -457,6 +415,74 @@ const App = () => {
             <div style={{ color: "Green", backgroundColor: "Yellow" }}>{atokens}</div>
           </div>
         </div>
+
+
+
+        <br></br>
+        <br></br>
+
+
+
+
+        <div>
+          <div>Manually Mint to Address</div>
+          <div>
+            <div><input
+              name="amt"
+              type='number'
+              placeholder="How many?"
+              required
+              onChange={handleAmtChange}
+            ></input></div>
+            <div><input
+              name="Address"
+              placeholder="To Whom?"
+              required
+              onChange={(event) => setAddress(event.target.value)}
+            ></input></div>
+            <div><input
+              name="canisterID"
+              placeholder="Collection Canister ID?"
+              required
+              onChange={handleCanChange}
+            ></input></div>
+            <div style={{ display: "flex" }}>
+              <div style={{ fontSize: 20 }}>
+                NFT image
+              </div>
+              <div>
+                {nft && (
+                  <div>
+                    <img alt="not found" width={"200px"} src={URL.createObjectURL(nft)} />
+                    <button onClick={() => setNft(null)}>Remove</button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  name="myImage"
+                  onChange={(event) => {
+                    const file = event.target.files[0];
+                    const reader = new window.FileReader()
+                    reader.onloadend = () => {
+                      setNft(event.target.files[0]);
+                      setEncoding(reader.result)
+                      console.log(reader.result)
+                    }
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </div>
+            </div>
+            <button
+              style={{ backgroundColor: "transparent", cursor: 'pointer', marginTop: 20, marginBottom: 20, width: 150, height: 30 }}
+              className=""
+              onClick={batch_mint}>
+              Batch mint!
+            </button>
+            <div style={{ color: "Green", backgroundColor: "Yellow" }}>{tokens}</div>
+          </div>
+        </div>
+        <br></br>
         <br></br>
 
 
