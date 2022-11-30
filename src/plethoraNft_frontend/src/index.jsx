@@ -22,10 +22,8 @@ const App = () => {
   const [nft_collection, setNftCollection] = useState("");
   const [token_index, setTokenIndex] = useState(0);
   const [loader, setLoader] = useState(false);
-
   const [address, setAddress] = useState("");
-
-  const candidLink = "https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.ic0.app/?id=m4xcd-5iaaa-aaaal-abkua-cai";
+  const [prevent, setPrevent] = useState(false);
 
   const handleAmtChange = (event) => {
     const { value } = event.target;
@@ -38,6 +36,15 @@ const App = () => {
   const handleEncodingChange = (event) => {
     const { value } = event.target;
     setEncoding(value);
+  };
+
+  const handlePreventChange = (event) => {
+    if (event.target.checked) {
+      setPrevent(true);
+    }
+    else{
+      setPrevent(false)
+    }
   };
 
   //plug connection and method call
@@ -58,7 +65,7 @@ const App = () => {
     });
     return IDL.Service({
       'airdrop_to_addresses' : IDL.Func(
-          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
+          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32, IDL.Bool],
           [IDL.Vec(TokenIndex)],
           [],
         ),
@@ -108,6 +115,7 @@ const App = () => {
       console.log(sessionData);
       setCollections(collection);
       setLoader(false)
+      console.log(prevent);
     }
     catch (err) {
       alert(err);
@@ -177,9 +185,10 @@ const App = () => {
     console.log(sessionData.principalId);
     console.log(encoding);
     console.log(amt);
+    console.log(prevent);
     try {
       setLoader(true)
-      const mintedTokens = await deployerActor.airdrop_to_addresses(String(nft_collection), String(canister), String(encoding), Number(amt));
+      const mintedTokens = await deployerActor.airdrop_to_addresses(String(nft_collection), String(canister), String(encoding), Number(amt), Boolean(prevent));
       setAtokens(mintedTokens);
       setLoader(false)
     }
@@ -359,13 +368,21 @@ const App = () => {
         <div>
           <div>Airdrop to Holders of an NFT Collection : </div>
           <div>
-            <div><input
+            {/* <div><input
               name="amt"
               type="number"
               placeholder="To how many?"
               required
               onChange={handleAmtChange}
-            ></input></div>
+            ></input></div> */}
+            <label style={{ display: "flex" }}>
+              <input
+                type="checkbox"
+                name="canisterID"
+                onChange={handlePreventChange}
+              ></input>
+              <div style={{fontSize: 20}}>Prevent Duplicate Airdrop!</div>
+            </label>
             <div><input
               name="canisterID"
               placeholder="Of which collection?"

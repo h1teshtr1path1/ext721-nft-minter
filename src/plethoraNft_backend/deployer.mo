@@ -6,6 +6,7 @@ import Buffer "mo:base/Buffer";
 import Cycles "mo:base/ExperimentalCycles";
 import Error "mo:base/Error";
 import Hash "mo:base/Hash";
+import HashMap "mo:base/HashMap";
 import Int "mo:base/Int";
 import Int16 "mo:base/Int16";
 import Int8 "mo:base/Int8";
@@ -185,7 +186,7 @@ actor Deployer {
 
 
     public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32) : async([TokenIndex]){
-        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
+        // assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         var i : Nat32 = 0;
         while(i < mint_size){
@@ -214,25 +215,42 @@ actor Deployer {
         addresses := buffer.toArray();
     };
 
-    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32) : async ([TokenIndex]){
-        assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
+    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32, prevent : Bool) : async ([TokenIndex]){
+        // assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var i : Nat = 0;
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         let collection = actor (collection_canister_id) : actor { getRegistry : () -> async [(TokenIndex, AccountIdentifier)]};
         var fetched_addresses : [(TokenIndex, AccountIdentifier)] = await collection.getRegistry();
-        var total_mints : Nat = Nat32.toNat(mint_size);
-        if(fetched_addresses.size() < Nat32.toNat(mint_size)){
-            total_mints := fetched_addresses.size();
-        };
+        // var total_mints : Nat = Nat32.toNat(mint_size);
+        // if(fetched_addresses.size() < Nat32.toNat(mint_size)){
+        //     total_mints := fetched_addresses.size();
+        // };
+        let airdrop_mapping = HashMap.HashMap<AccountIdentifier, Bool>(0, Text.equal, Text.hash); //mapping address to bool, to prevent duplicate airdrops.
+        var total_mints : Nat = fetched_addresses.size();
         while(i < total_mints){
             var id : (TokenIndex, AccountIdentifier) = fetched_addresses[i];
-            var mintReq : MintRequest = {
-                to = #address (id.1);
-                metadata = ?base64encoding;
-            };
-            let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
-            var token_id : TokenIndex = await c.mintNFT(mintReq);
-            indices.add(token_id);
+            if(prevent == false){
+                var mintReq : MintRequest = {
+                    to = #address (id.1);
+                    metadata = ?base64encoding;
+                };
+                let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
+                var token_id : TokenIndex = await c.mintNFT(mintReq);
+                indices.add(token_id);
+            }
+            else{
+                var isPresent : Bool = Option.get(airdrop_mapping.get(id.1), false);
+                if(isPresent == false){
+                    var mintReq : MintRequest = {
+                        to = #address (id.1);
+                        metadata = ?base64encoding;
+                    };
+                    let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
+                    var token_id : TokenIndex = await c.mintNFT(mintReq);
+                    indices.add(token_id);
+                    airdrop_mapping.put(id.1, true);
+                }
+            }; 
             i := i+1;
         };
         return indices.toArray();
