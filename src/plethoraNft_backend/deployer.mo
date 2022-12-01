@@ -55,6 +55,7 @@ actor Deployer {
     private var init_minter : Principal = deployerID;
 
     private stable var collections : Trie.Trie<Text, Text> = Trie.empty(); //mapping of Collection CanisterID -> Collection Name
+    private stable var _owner : Trie.Trie<Text, Text> = Trie.empty(); //mapping collection canister id -> owner principal id
     private stable var addresses : [Text] = [];
 
 
@@ -153,11 +154,9 @@ actor Deployer {
     };
 
     public shared(msg) func create_collection(collectionName : Text, creator : Text) : async(Text){
-        // assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
         var canID : Text = await create_canister();
-        let collection = actor (canID) : actor { setMinter : (Principal) -> async ()};
-        await collection.setMinter(Principal.fromText(creator));
         collections := Trie.put(collections, keyT(canID), Text.equal, collectionName).0;
+        _owner := Trie.put(_owner, keyT(canID), Text.equal, creator).0;
         return canID;
     };
 
@@ -186,7 +185,8 @@ actor Deployer {
 
 
     public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32) : async([TokenIndex]){
-        // assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
+        var owner : Text = Option.get(Trie.find(_owner, keyT(collection_canister_id), Text.equal), "");
+        assert(msg.caller == Principal.fromText(owner));
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         var i : Nat32 = 0;
         while(i < mint_size){
@@ -216,7 +216,8 @@ actor Deployer {
     };
 
     public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32, prevent : Bool) : async ([TokenIndex]){
-        // assert(msg.caller == Principal.fromText("vqin2-mfk7l-reqbt-el23g-7rolz-wbopf-csgja-s7xz3-6h3zz-iz2kf-xae") or msg.caller == Principal.fromText("cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe"));
+        var owner : Text = Option.get(Trie.find(_owner, keyT(canid), Text.equal), "");
+        assert(msg.caller == Principal.fromText(owner));
         var i : Nat = 0;
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
         let collection = actor (collection_canister_id) : actor { getRegistry : () -> async [(TokenIndex, AccountIdentifier)]};
@@ -259,6 +260,7 @@ actor Deployer {
     public shared(msg) func clear_collection_registry() : async() {
         assert(msg.caller == Principal.fromText("2ot7t-idkzt-murdg-in2md-bmj2w-urej7-ft6wa-i4bd3-zglmv-pf42b-zqe"));
         collections := Trie.empty();
+        _owner := Trie.empty();
     };
 
     public shared({caller}) func show_token_nft(collection_canister_id : Text, token_index : TokenIndex) : async(Metadata){
@@ -291,5 +293,9 @@ actor Deployer {
     public shared({caller}) func getTokensMetadata(collection_canister_id : Text) : async [(MetadataIndex, Metadata)]{
         let collection = actor (collection_canister_id) : actor { getTokensMetadata : () -> async [(MetadataIndex, Metadata)]};
         return (await collection.getTokensMetadata());
+    };
+    public query func getOwner(id : Text) : async (Text){
+        var owner : Text = Option.get(Trie.find(_owner, keyT(id), Text.equal), "");
+        return owner;
     };
 };

@@ -119,6 +119,7 @@ const App = () => {
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
   const getRegistry = async (event) => {
@@ -142,6 +143,7 @@ const App = () => {
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
 
@@ -167,6 +169,7 @@ const App = () => {
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
 
@@ -194,6 +197,7 @@ const App = () => {
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
 
@@ -212,7 +216,6 @@ const App = () => {
         memo: 'charges for new canister creation',
       };
       const result = await window.ic.plug.requestTransfer(params);
-      alert(result);
       console.log(result);
     }
     catch (err) {
@@ -229,11 +232,12 @@ const App = () => {
       setLoader(true)
       const sessionData = window.ic.plug.sessionManager.sessionData;
       const canisterId = await deployerActor.create_collection(name, String(sessionData.principalId));
-      alert("Here is your nft collection : " + canisterId + "adn Minter : " + (sessionData.principalId));
+      alert("Here is your nft collection : " + canisterId + "and Owner : " + (sessionData.principalId));
       setLoader(false)
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
 
@@ -260,6 +264,7 @@ const App = () => {
     }
     catch (err) {
       alert(err);
+      setLoader(false)
     }
   };
 
