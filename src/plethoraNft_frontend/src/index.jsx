@@ -19,11 +19,15 @@ const App = () => {
   const [connect, setConnect] = useState("Please Connect you Wallet!");
   const [registry, setRegistry] = useState([]);
   const [nft, setNft] = useState(null);
+  const [nft1, setNft1] = useState(null);
   const [nft_collection, setNftCollection] = useState("");
   const [token_index, setTokenIndex] = useState(0);
   const [loader, setLoader] = useState(false);
   const [address, setAddress] = useState("");
   const [prevent, setPrevent] = useState(false);
+  const [json, setJson] = useState("");
+  const [json1, setJson1] = useState("");
+  const [nft_json, setNftJson] = useState("");
 
   const handleAmtChange = (event) => {
     const { value } = event.target;
@@ -53,6 +57,7 @@ const App = () => {
 
   const deployerIDL = ({ IDL }) => {
     const TokenIndex = IDL.Nat32;
+    const MetaJson = IDL.Text;
     const MetadataIndex = IDL.Nat32;
     const Metadata = IDL.Variant({
       'fungible' : IDL.Record({
@@ -65,12 +70,12 @@ const App = () => {
     });
     return IDL.Service({
       'airdrop_to_addresses' : IDL.Func(
-          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32, IDL.Bool],
+          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32, IDL.Bool, IDL.Text],
           [IDL.Vec(TokenIndex)],
           [],
         ),
       'batch_mint_to_address' : IDL.Func(
-          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32],
+          [IDL.Text, IDL.Text, IDL.Text, IDL.Nat32, IDL.Text],
           [IDL.Vec(TokenIndex)],
           [],
         ),
@@ -80,7 +85,9 @@ const App = () => {
       'fetch_collection_addresses' : IDL.Func([IDL.Text], [], []),
       'getAddresses' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
       'getCollections' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+      'getOwner' : IDL.Func([IDL.Text], [IDL.Text], ['query']),
       'getRegistry' : IDL.Func([IDL.Text], [IDL.Vec(IDL.Text)], []),
+      'getTokenJson' : IDL.Func([IDL.Text, TokenIndex], [MetaJson], []),
       'getTokens' : IDL.Func(
           [IDL.Text],
           [IDL.Vec(IDL.Tuple(TokenIndex, MetadataIndex))],
@@ -161,9 +168,10 @@ const App = () => {
     console.log(canister);
     console.log(encoding);
     console.log(amt);
+    console.log(json1);
     try {
       setLoader(true)
-      const mintedTokens = await deployerActor.batch_mint_to_address(String(canister), String(encoding), String(address), Number(amt));
+      const mintedTokens = await deployerActor.batch_mint_to_address(String(canister), String(encoding), String(address), Number(amt), String(json1));
       setTokens(mintedTokens);
       setLoader(false)
     }
@@ -189,9 +197,10 @@ const App = () => {
     console.log(encoding);
     console.log(amt);
     console.log(prevent);
+    console.log(json);
     try {
       setLoader(true)
-      const mintedTokens = await deployerActor.airdrop_to_addresses(String(nft_collection), String(canister), String(encoding), Number(amt), Boolean(prevent));
+      const mintedTokens = await deployerActor.airdrop_to_addresses(String(nft_collection), String(canister), String(encoding), Number(amt), Boolean(prevent), String(json));
       setAtokens(mintedTokens);
       setLoader(false)
     }
@@ -212,7 +221,7 @@ const App = () => {
     try {
       const params = {
         to: 'cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe',
-        amount: 33773252,      //0.33773252
+        amount: 10000000,      //0.33773252
         memo: 'charges for new canister creation',
       };
       const result = await window.ic.plug.requestTransfer(params);
@@ -255,11 +264,14 @@ const App = () => {
     try {
       setLoader(true)
       const image = await deployerActor.show_token_nft(String(canister), Number(token_index));
+      const json = await deployerActor.getTokenJson(String(canister), Number(token_index));
       console.log(String(image.nonfungible.metadata));
+      console.log(String(json));
       if (String(image.nonfungible.metadata) == "") {
         alert("Token Not Found!");
       }
       setNftCollection(String(image.nonfungible.metadata));
+      setNftJson(json);
       setLoader(false)
     }
     catch (err) {
@@ -428,6 +440,12 @@ const App = () => {
                 />
               </div>
             </div>
+            <div><input
+              name="json"
+              placeholder="nft metadata?"
+              required
+              onChange={(event) => setJson(event.target.value)}
+            ></input></div>
             <button
               style={{ backgroundColor: "transparent", cursor: 'pointer', marginTop: 20, marginBottom: 20, width: 150, height: 30 }}
               className=""
@@ -473,10 +491,10 @@ const App = () => {
                 NFT image
               </div>
               <div>
-                {nft && (
+                {nft1 && (
                   <div>
-                    <img alt="not found" width={"200px"} src={URL.createObjectURL(nft)} />
-                    <button onClick={() => setNft(null)}>Remove</button>
+                    <img alt="not found" width={"200px"} src={URL.createObjectURL(nft1)} />
+                    <button onClick={() => setNft1(null)}>Remove</button>
                   </div>
                 )}
                 <input
@@ -486,7 +504,7 @@ const App = () => {
                     const file = event.target.files[0];
                     const reader = new window.FileReader()
                     reader.onloadend = () => {
-                      setNft(event.target.files[0]);
+                      setNft1(event.target.files[0]);
                       setEncoding(reader.result)
                       console.log(reader.result)
                     }
@@ -495,6 +513,12 @@ const App = () => {
                 />
               </div>
             </div>
+            <div><input
+              name="json"
+              placeholder="nft metadata?"
+              required
+              onChange={(event) => setJson1(event.target.value)}
+            ></input></div>
             <button
               style={{ backgroundColor: "transparent", cursor: 'pointer', marginTop: 20, marginBottom: 20, width: 150, height: 30 }}
               className=""
@@ -533,6 +557,7 @@ const App = () => {
             </button>
             <div style={{ fontSize: 20, backgroundColor: "Yellow" }}>
               <img src={nft_collection}></img>
+              <div>{nft_json}</div>
             </div>
           </div>
 

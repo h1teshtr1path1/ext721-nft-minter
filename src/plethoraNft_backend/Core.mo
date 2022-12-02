@@ -26,6 +26,7 @@ module ExtCore = {
   public type TokenIdentifier  = Text;
   public type TokenIndex = Nat32;
   public type MetadataIndex = Nat32;
+  public type MetaJson = Text;
   public type TokenObj = {
     index : TokenIndex;
     canister : [Nat8];

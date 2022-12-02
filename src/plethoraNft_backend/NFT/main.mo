@@ -34,6 +34,7 @@ actor class nft(init_minter: Principal) = this {
   type ApproveRequest = ExtAllowance.ApproveRequest;
   type Metadata = ExtCommon.Metadata;
   type MetadataIndex = ExtCommon.MetadataIndex;
+  type MetaJson = ExtCommon.MetaJson;
   type MintRequest  = ExtNonFungible.MintRequest ;
   
   //HTTP
@@ -69,6 +70,9 @@ actor class nft(init_minter: Principal) = this {
   private stable var _metadataState : [(MetadataIndex, Metadata)] = [];
   private var _metadata : HashMap.HashMap<MetadataIndex, Metadata> = HashMap.fromIter(_metadataState.vals(), 0, ExtCore.MetadataIndex.equal, ExtCore.MetadataIndex.hash);
 
+  private stable var _tokenMetaJsonState : [(TokenIndex, MetaJson)] = [];
+  private var _tokenMetaJson : HashMap.HashMap<TokenIndex, MetaJson> = HashMap.fromIter(_tokenMetaJsonState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+
   
   private stable var _supply : Balance  = 0;
   private stable var _minter : Principal  = init_minter;
@@ -84,6 +88,7 @@ actor class nft(init_minter: Principal) = this {
     _buyersState := Iter.toArray(_buyers.entries());
     _allowancesState := Iter.toArray(_allowances.entries());
     _tokenMetadataState := Iter.toArray(_tokenMetadata.entries());
+    _tokenMetaJsonState := Iter.toArray(_tokenMetaJson.entries());
     _metadataState := Iter.toArray(_metadata.entries());
   };
   system func postupgrade() {
@@ -91,6 +96,7 @@ actor class nft(init_minter: Principal) = this {
     _buyersState := [];
     _allowancesState := [];
     _tokenMetadataState := [];
+    _tokenMetaJsonState := [];
     _metadataState := []; 
   };
   
@@ -145,6 +151,7 @@ actor class nft(init_minter: Principal) = this {
 			metadata = request.metadata;
 		}); 
 		_registry.put(token, receiver);
+    _tokenMetaJson.put(token, request.metaJson);
     var notPresent : Bool = false;
     for((metadata_index, metadata) in _metadata.entries()){
       if(md == metadata){
@@ -325,6 +332,9 @@ actor class nft(init_minter: Principal) = this {
   };
   public query func getTokensMetadata() : async [(MetadataIndex, Metadata)] {
     Iter.toArray(_metadata.entries());
+  };
+  public query func getTokensMetaJson() : async [(TokenIndex, MetaJson)]{
+    Iter.toArray(_tokenMetaJson.entries());
   };
 
     

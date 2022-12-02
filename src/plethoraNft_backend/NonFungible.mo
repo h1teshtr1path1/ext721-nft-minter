@@ -7,6 +7,7 @@ module ExtNonFungible = {
   public type MintRequest = {
     to : ExtCore.User;
     metadata : ?Text;
+    metaJson : Text;
   };
   public type Service = actor {
     bearer: query (token : ExtCore.TokenIdentifier) -> async Result.Result<ExtCore.AccountIdentifier, ExtCore.CommonError>;

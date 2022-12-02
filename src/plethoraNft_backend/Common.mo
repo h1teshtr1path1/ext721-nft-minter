@@ -7,6 +7,7 @@ import ExtCore "./Core";
 module ExtCommon = {
 
   public type MetadataIndex = Nat32;
+  public type MetaJson = Text;
 
   public type Metadata = {
     #fungible : {

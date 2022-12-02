@@ -48,6 +48,7 @@ actor Deployer {
     type AllowanceRequest = ExtAllowance.AllowanceRequest;
     type ApproveRequest = ExtAllowance.ApproveRequest;
     type Metadata = ExtCommon.Metadata;
+    type MetaJson = ExtCommon.MetaJson;
     type MetadataIndex = ExtCommon.MetadataIndex;
     type MintRequest  = ExtNonFungible.MintRequest ;
 
@@ -168,6 +169,7 @@ actor Deployer {
         };
         return buffer.toArray();
     };
+    
     public func getRegistry(collection_canister_id : Text) : async([Text]){
         var buffer : Buffer.Buffer<Text> = Buffer.Buffer<Text>(0);
         let collection = actor (collection_canister_id) : actor { getRegistry : () -> async [(TokenIndex, AccountIdentifier)]};
@@ -184,7 +186,7 @@ actor Deployer {
     };
 
 
-    public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32) : async([TokenIndex]){
+    public shared(msg) func batch_mint_to_address(collection_canister_id : Text, base64encoding : Text, mint_to : Text, mint_size : Nat32, json : Text) : async([TokenIndex]){
         var owner : Text = Option.get(Trie.find(_owner, keyT(collection_canister_id), Text.equal), "");
         assert(msg.caller == Principal.fromText(owner));
         var indices : Buffer.Buffer<TokenIndex> = Buffer.Buffer<TokenIndex>(0);
@@ -193,6 +195,7 @@ actor Deployer {
             var mintReq : MintRequest = {
                 to = #principal (Principal.fromText(mint_to));
                 metadata = ?base64encoding;
+                metaJson = json;
             };
             let collection = actor (collection_canister_id) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
             var token_id : TokenIndex = await collection.mintNFT(mintReq);
@@ -215,7 +218,7 @@ actor Deployer {
         addresses := buffer.toArray();
     };
 
-    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32, prevent : Bool) : async ([TokenIndex]){
+    public shared(msg) func airdrop_to_addresses(collection_canister_id : Text, canid : Text, base64encoding : Text, mint_size : Nat32, prevent : Bool, json : Text) : async ([TokenIndex]){
         var owner : Text = Option.get(Trie.find(_owner, keyT(canid), Text.equal), "");
         assert(msg.caller == Principal.fromText(owner));
         var i : Nat = 0;
@@ -234,6 +237,7 @@ actor Deployer {
                 var mintReq : MintRequest = {
                     to = #address (id.1);
                     metadata = ?base64encoding;
+                    metaJson = json;
                 };
                 let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
                 var token_id : TokenIndex = await c.mintNFT(mintReq);
@@ -245,6 +249,7 @@ actor Deployer {
                     var mintReq : MintRequest = {
                         to = #address (id.1);
                         metadata = ?base64encoding;
+                        metaJson = json;
                     };
                     let c = actor (canid) : actor { mintNFT : (MintRequest) -> async (TokenIndex)};
                     var token_id : TokenIndex = await c.mintNFT(mintReq);
@@ -286,6 +291,20 @@ actor Deployer {
         };
         return meta;
     };
+
+    public shared({caller}) func getTokenJson(collection_canister_id : Text, token_index : TokenIndex) : async(MetaJson){
+        let collection_ = actor (collection_canister_id) : actor { getTokensMetaJson : () -> async [(TokenIndex, MetaJson)]};
+        var tokenJsons : [(TokenIndex, MetaJson)] = await collection_.getTokensMetaJson(); 
+        var json : Text = "";
+        label indiLoop for(val in tokenJsons.vals()){
+            if(val.0 == token_index){
+                json := val.1;
+                break indiLoop;
+            }
+        };
+        return json;
+    };
+
     public shared({caller}) func getTokens(collection_canister_id : Text) : async [(TokenIndex, MetadataIndex)]{
         let collection = actor (collection_canister_id) : actor { getTokens : () -> async [(TokenIndex, MetadataIndex)]};
         return (await collection.getTokens());
