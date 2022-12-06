@@ -280,6 +280,17 @@ const App = () => {
     }
   };
 
+  const ConnectCallback = async (event) => {
+    setWallet(window.ic.plug.principalId);
+    const isConnected = await window.ic.plug.isConnected();
+    if(isConnected){
+      setConnect("Connected!");
+    }
+    else{
+      setConnect("Please Connect you Wallet!");
+    }
+  };
+
   useEffect(() => {
     async function checkConnection() {
       const isConnected = await window.ic.plug.isConnected();
@@ -314,7 +325,7 @@ const App = () => {
           <div>
             <PlugConnect
               whitelist={whitelist}
-              onConnectCallback={() => { setWallet(window.ic.plug.principalId) }}
+              onConnectCallback={ConnectCallback}
             />
           </div>
         </div>
