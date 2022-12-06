@@ -221,7 +221,7 @@ const App = () => {
     try {
       const params = {
         to: 'cbwh3-4gje3-s7ubx-zo3je-jmylt-vrpll-fdhvd-a5br4-nyebl-njajh-rqe',
-        amount: 10000000,      //0.33773252
+        amount: 33773252,      //0.33773252
         memo: 'charges for new canister creation',
       };
       const result = await window.ic.plug.requestTransfer(params);
